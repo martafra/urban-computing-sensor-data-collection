@@ -13,7 +13,7 @@
         }
         
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: #f3f4f6;
             min-height: 100vh;
             padding: 20px;
@@ -46,6 +46,10 @@
             margin-bottom: 15px;
         }
         
+        .setting-group:last-child {
+            margin-bottom: 0;
+        }
+        
         label {
             display: block;
             font-weight: 600;
@@ -53,18 +57,29 @@
             color: #555;
         }
         
-        input[type="number"] {
+        input[type="number"], select {
             width: 100%;
             padding: 12px;
             border: 2px solid #ddd;
             border-radius: 8px;
             font-size: 16px;
             transition: border 0.3s;
+            background: white;
         }
         
-        input[type="number"]:focus {
+        input[type="number"]:focus, select:focus {
             outline: none;
             border-color: #217346;
+        }
+        
+        input[type="number"]:disabled {
+            background: #e9ecef;
+            color: #6c757d;
+            cursor: not-allowed;
+        }
+        
+        select {
+            cursor: pointer;
         }
         
         .controls {
@@ -89,7 +104,7 @@
             background: #2563eb;
         }
         
-        .btn-start:hover {
+        .btn-start:hover:not(:disabled) {
             transform: translateY(-2px);
             box-shadow: 0 5px 15px rgba(37, 99, 235, 0.4);
             background: #1d4ed8;
@@ -99,16 +114,10 @@
             background: #dc2626;
         }
         
-        .btn-stop:hover {
+        .btn-stop:hover:not(:disabled) {
             transform: translateY(-2px);
             box-shadow: 0 5px 15px rgba(220, 38, 38, 0.4);
             background: #b91c1c;
-        }
-        
-        .btn-stop:disabled, .btn-start:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            transform: none;
         }
         
         .btn-export {
@@ -131,6 +140,12 @@
             background: #4b5563;
         }
         
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
         .status {
             background: #e9ecef;
             padding: 20px;
@@ -145,6 +160,10 @@
             padding: 10px;
             background: white;
             border-radius: 5px;
+        }
+        
+        .status-item:last-child {
+            margin-bottom: 0;
         }
         
         .status-label {
@@ -279,19 +298,30 @@
         
         <div class="settings">
             <div class="setting-group">
-                <label for="frequency" id="labelFreq">Frequenza di raccolta (secondi):</label>
-                <input type="number" id="frequency" min="1" max="3600" value="5" step="1">
+                <label for="mode" id="labelMode">Modalità di raccolta:</label>
+                <select id="mode">
+                    <option value="walking">A piedi (3 sec)</option>
+                    <option value="cycling">In bicicletta (2 sec)</option>
+                    <option value="driving">In auto (2 sec)</option>
+                    <option value="stationary">Punto fisso (30 sec)</option>
+                    <option value="long">Lunga durata (60 sec)</option>
+                    <option value="custom">Manuale</option>
+                </select>
+            </div>
+            <div class="setting-group">
+                <label for="freq" id="labelFreq">Frequenza (secondi):</label>
+                <input type="number" id="freq" min="1" max="3600" value="3" step="1" disabled>
             </div>
         </div>
         
         <div class="controls">
-            <button id="startBtn" class="btn-start"><span id="btnStart"><i class="bi bi-play-fill"></i> Avvia Raccolta</span></button>
-            <button id="stopBtn" class="btn-stop" disabled><span id="btnStop"><i class="bi bi-stop-fill"></i> Ferma Raccolta</span></button>
+            <button id="btnStart" class="btn-start"><i class="bi bi-play-fill"></i> Avvia Raccolta</button>
+            <button id="btnStop" class="btn-stop" disabled><i class="bi bi-stop-fill"></i> Ferma Raccolta</button>
         </div>
         
         <div class="controls">
-            <button id="exportBtn" class="btn-export"><span id="btnExport"><i class="bi bi-download"></i> Esporta CSV</span></button>
-            <button id="clearBtn" class="btn-clear"><span id="btnClear"><i class="bi bi-trash-fill"></i> Cancella Dati</span></button>
+            <button id="btnExport" class="btn-export"><i class="bi bi-download"></i> Esporta CSV</button>
+            <button id="btnClear" class="btn-clear"><i class="bi bi-trash-fill"></i> Cancella Dati</button>
         </div>
         
         <div class="status">
@@ -301,15 +331,15 @@
             </div>
             <div class="status-item">
                 <span class="status-label" id="labelCount">Dati raccolti:</span>
-                <span class="status-value" id="dataCount">0</span>
+                <span class="status-value" id="count">0</span>
             </div>
             <div class="status-item">
                 <span class="status-label" id="labelLastGPS">Ultima posizione:</span>
-                <span class="status-value" id="lastGPS">-</span>
+                <span class="status-value" id="gps">-</span>
             </div>
             <div class="status-item">
                 <span class="status-label" id="labelLastSound">Ultimo livello suono:</span>
-                <span class="status-value" id="lastSound">-</span>
+                <span class="status-value" id="sound">-</span>
             </div>
         </div>
         
@@ -317,15 +347,15 @@
             <table>
                 <thead>
                     <tr>
-                        <th id="thTimestamp">Timestamp</th>
+                        <th id="thTime">Timestamp</th>
                         <th id="thLat">Latitudine</th>
                         <th id="thLng">Longitudine</th>
                         <th id="thDB">Livello dB</th>
                     </tr>
                 </thead>
-                <tbody id="dataBody">
+                <tbody id="tbody">
                     <tr>
-                        <td colspan="4" style="text-align: center; color: #999;" id="noData">Nessun dato raccolto</td>
+                        <td colspan="4" style="text-align: center; color: #999;" id="nodata">Nessun dato raccolto</td>
                     </tr>
                 </tbody>
             </table>
@@ -333,19 +363,18 @@
     </div>
 
     <script>
-        let isRecording = false;
-        let intervalId = null;
-        let audioContext = null;
-        let analyser = null;
-        let microphone = null;
-        let dataArray = null;
-        let collectedData = [];
-        let currentLang = 'it';
-        
-        const translations = {
+        // Traduzioni / Translations
+        var txt = {
             it: {
                 title: '<i class="bi bi-geo-alt-fill"></i> Raccolta Dati GPS e Suono <i class="bi bi-soundwave"></i>',
-                labelFreq: 'Frequenza di raccolta (secondi):',
+                labelMode: 'Modalità di raccolta:',
+                labelFreq: 'Frequenza (secondi):',
+                modeWalking: 'A piedi (3 sec)',
+                modeCycling: 'In bicicletta (2 sec)',
+                modeDriving: 'In auto (2 sec)',
+                modeStationary: 'Punto fisso (30 sec)',
+                modeLong: 'Lunga durata (60 sec)',
+                modeCustom: 'Manuale',
                 btnStart: '<i class="bi bi-play-fill"></i> Avvia Raccolta',
                 btnStop: '<i class="bi bi-stop-fill"></i> Ferma Raccolta',
                 btnExport: '<i class="bi bi-download"></i> Esporta CSV',
@@ -354,30 +383,35 @@
                 labelCount: 'Dati raccolti:',
                 labelLastGPS: 'Ultima posizione:',
                 labelLastSound: 'Ultimo livello suono:',
-                thTimestamp: 'Timestamp',
+                thTime: 'Timestamp',
                 thLat: 'Latitudine',
                 thLng: 'Longitudine',
                 thDB: 'Livello dB',
-                noData: 'Nessun dato raccolto',
-                statusWaiting: 'In attesa',
-                statusRecording: 'Registrazione in corso',
-                statusStopped: 'Fermato',
-                errorMic: 'Errore accesso microfono: ',
-                errorGPS: 'GPS non supportato',
-                errorCollect: 'Errore raccolta dati: ',
-                errorNoData: 'Nessun dato da esportare',
+                nodata: 'Nessun dato raccolto',
+                waiting: 'In attesa',
+                recording: 'Registrazione in corso',
+                stopped: 'Fermato',
+                errMic: 'Errore accesso microfono: ',
+                errGPS: 'GPS non supportato',
+                errCollect: 'Errore raccolta dati: ',
+                errNoData: 'Nessun dato da esportare',
                 confirmClear: 'Sei sicuro di voler cancellare tutti i dati raccolti?',
-                csvFilename: 'dati_gps_suono',
-                csvHeaders: {
-                    timestamp: 'Data_Ora',
-                    lat: 'Latitudine',
-                    lng: 'Longitudine',
-                    db: 'Livello_dB'
-                }
+                csvFile: 'dati_gps_suono',
+                csvTime: 'Data_Ora',
+                csvLat: 'Latitudine',
+                csvLng: 'Longitudine',
+                csvDB: 'Livello_dB'
             },
             en: {
                 title: '<i class="bi bi-geo-alt-fill"></i> GPS and Sound Data Collection <i class="bi bi-soundwave"></i>',
-                labelFreq: 'Collection frequency (seconds):',
+                labelMode: 'Collection mode:',
+                labelFreq: 'Frequency (seconds):',
+                modeWalking: 'Walking (3 sec)',
+                modeCycling: 'Cycling (2 sec)',
+                modeDriving: 'Driving (2 sec)',
+                modeStationary: 'Fixed point (30 sec)',
+                modeLong: 'Long duration (60 sec)',
+                modeCustom: 'Manual',
                 btnStart: '<i class="bi bi-play-fill"></i> Start Collection',
                 btnStop: '<i class="bi bi-stop-fill"></i> Stop Collection',
                 btnExport: '<i class="bi bi-download"></i> Export CSV',
@@ -386,264 +420,299 @@
                 labelCount: 'Data collected:',
                 labelLastGPS: 'Last position:',
                 labelLastSound: 'Last sound level:',
-                thTimestamp: 'Timestamp',
+                thTime: 'Timestamp',
                 thLat: 'Latitude',
                 thLng: 'Longitude',
                 thDB: 'Level dB',
-                noData: 'No data collected',
-                statusWaiting: 'Waiting',
-                statusRecording: 'Recording in progress',
-                statusStopped: 'Stopped',
-                errorMic: 'Microphone access error: ',
-                errorGPS: 'GPS not supported',
-                errorCollect: 'Data collection error: ',
-                errorNoData: 'No data to export',
+                nodata: 'No data collected',
+                waiting: 'Waiting',
+                recording: 'Recording in progress',
+                stopped: 'Stopped',
+                errMic: 'Microphone access error: ',
+                errGPS: 'GPS not supported',
+                errCollect: 'Data collection error: ',
+                errNoData: 'No data to export',
                 confirmClear: 'Are you sure you want to delete all collected data?',
-                csvFilename: 'gps_sound_data',
-                csvHeaders: {
-                    timestamp: 'DateTime',
-                    lat: 'Latitude',
-                    lng: 'Longitude',
-                    db: 'Sound_Level_dB'
-                }
+                csvFile: 'gps_sound_data',
+                csvTime: 'DateTime',
+                csvLat: 'Latitude',
+                csvLng: 'Longitude',
+                csvDB: 'Sound_Level_dB'
             }
         };
         
-        const startBtn = document.getElementById('startBtn');
-        const stopBtn = document.getElementById('stopBtn');
-        const exportBtn = document.getElementById('exportBtn');
-        const clearBtn = document.getElementById('clearBtn');
-        const langSelect = document.getElementById('langSelect');
-        const frequencyInput = document.getElementById('frequency');
-        const statusEl = document.getElementById('status');
-        const dataCountEl = document.getElementById('dataCount');
-        const lastGPSEl = document.getElementById('lastGPS');
-        const lastSoundEl = document.getElementById('lastSound');
-        const dataBody = document.getElementById('dataBody');
-        const errorEl = document.getElementById('error');
+        // Frequenze preset / Preset frequencies
+        var freqs = { walking: 3, cycling: 2, driving: 2, stationary: 30, long: 60 };
         
-        function setLanguage(lang) {
-            currentLang = lang;
-            const t = translations[lang];
+        // Variabili di stato / State variables
+        var recording = false;
+        var interval = null;
+        var ctx = null;
+        var analyzer = null;
+        var mic = null;
+        var freqData = null;
+        var data = [];
+        var lang = 'it';
+        
+        // Riferimenti agli elementi DOM / DOM element references
+        var elemMode = document.getElementById('mode');
+        var elemFreq = document.getElementById('freq');
+        var elemStart = document.getElementById('btnStart');
+        var elemStop = document.getElementById('btnStop');
+        var elemExport = document.getElementById('btnExport');
+        var elemClear = document.getElementById('btnClear');
+        var elemLang = document.getElementById('langSelect');
+        var elemStatus = document.getElementById('status');
+        var elemCount = document.getElementById('count');
+        var elemGPS = document.getElementById('gps');
+        var elemSound = document.getElementById('sound');
+        var elemTbody = document.getElementById('tbody');
+        var elemError = document.getElementById('error');
+        
+        // Gestione cambio modalità / Mode change handler
+        elemMode.addEventListener('change', function() {
+            var m = elemMode.value;
+            if (m === 'custom') {
+                elemFreq.disabled = false;
+            } else {
+                elemFreq.value = freqs[m];
+                elemFreq.disabled = true;
+            }
+        });
+        
+        // Gestione cambio lingua / Language change handler
+        elemLang.addEventListener('change', function() {
+            updateLang(elemLang.value);
+        });
+        
+        // Aggiorna testi interfaccia / Update UI texts
+        function updateLang(l) {
+            lang = l;
+            var t = txt[l];
             
             document.getElementById('title').innerHTML = t.title;
+            document.getElementById('labelMode').textContent = t.labelMode;
             document.getElementById('labelFreq').textContent = t.labelFreq;
-            document.getElementById('btnStart').innerHTML = t.btnStart;
-            document.getElementById('btnStop').innerHTML = t.btnStop;
-            document.getElementById('btnExport').innerHTML = t.btnExport;
-            document.getElementById('btnClear').innerHTML = t.btnClear;
+            
+            var opts = elemMode.options;
+            opts[0].text = t.modeWalking;
+            opts[1].text = t.modeCycling;
+            opts[2].text = t.modeDriving;
+            opts[3].text = t.modeStationary;
+            opts[4].text = t.modeLong;
+            opts[5].text = t.modeCustom;
+            
+            elemStart.innerHTML = t.btnStart;
+            elemStop.innerHTML = t.btnStop;
+            elemExport.innerHTML = t.btnExport;
+            elemClear.innerHTML = t.btnClear;
+            
             document.getElementById('labelStatus').textContent = t.labelStatus;
             document.getElementById('labelCount').textContent = t.labelCount;
             document.getElementById('labelLastGPS').textContent = t.labelLastGPS;
             document.getElementById('labelLastSound').textContent = t.labelLastSound;
-            document.getElementById('thTimestamp').textContent = t.thTimestamp;
+            
+            document.getElementById('thTime').textContent = t.thTime;
             document.getElementById('thLat').textContent = t.thLat;
             document.getElementById('thLng').textContent = t.thLng;
             document.getElementById('thDB').textContent = t.thDB;
             
-            if (!isRecording) {
-                statusEl.textContent = t.statusWaiting;
+            if (!recording) {
+                elemStatus.textContent = t.waiting;
             }
             
-            const noDataEl = document.getElementById('noData');
-            if (noDataEl) {
-                noDataEl.textContent = t.noData;
+            var nd = document.getElementById('nodata');
+            if (nd) {
+                nd.textContent = t.nodata;
             }
         }
         
-        langSelect.addEventListener('change', (e) => {
-            setLanguage(e.target.value);
-        });
-        
-        function showError(message) {
-            errorEl.textContent = message;
-            errorEl.style.display = 'block';
-            setTimeout(() => {
-                errorEl.style.display = 'none';
+        // Mostra messaggio di errore / Show error message
+        function showErr(msg) {
+            elemError.textContent = msg;
+            elemError.style.display = 'block';
+            setTimeout(function() {
+                elemError.style.display = 'none';
             }, 5000);
         }
         
-        async function initAudio() {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                analyser = audioContext.createAnalyser();
-                microphone = audioContext.createMediaStreamSource(stream);
-                
-                analyser.fftSize = 256;
-                const bufferLength = analyser.frequencyBinCount;
-                dataArray = new Uint8Array(bufferLength);
-                
-                microphone.connect(analyser);
-                return true;
-            } catch (err) {
-                showError(translations[currentLang].errorMic + err.message);
-                return false;
-            }
+        // Inizializza accesso microfono / Initialize microphone access
+        function setupAudio() {
+            return new Promise(function(resolve) {
+                navigator.mediaDevices.getUserMedia({ audio: true })
+                    .then(function(stream) {
+                        ctx = new (window.AudioContext || window.webkitAudioContext)();
+                        analyzer = ctx.createAnalyser();
+                        mic = ctx.createMediaStreamSource(stream);
+                        analyzer.fftSize = 256;
+                        freqData = new Uint8Array(analyzer.frequencyBinCount);
+                        mic.connect(analyzer);
+                        resolve(true);
+                    })
+                    .catch(function(err) {
+                        showErr(txt[lang].errMic + err.message);
+                        resolve(false);
+                    });
+            });
         }
         
-        function getSoundLevel() {
-            if (!analyser || !dataArray) return 0;
-            
-            analyser.getByteFrequencyData(dataArray);
-            let sum = 0;
-            for (let i = 0; i < dataArray.length; i++) {
-                sum += dataArray[i];
+        // Calcola livello sonoro in dB / Calculate sound level in dB
+        function getDB() {
+            if (!analyzer || !freqData) return 0;
+            analyzer.getByteFrequencyData(freqData);
+            var sum = 0;
+            for (var i = 0; i < freqData.length; i++) {
+                sum += freqData[i];
             }
-            const average = sum / dataArray.length;
-            const db = 20 * Math.log10(average / 255) + 100;
+            var avg = sum / freqData.length;
+            var db = 20 * Math.log10(avg / 255) + 100;
             return Math.max(0, Math.min(100, db)).toFixed(1);
         }
         
+        // Ottieni coordinate GPS / Get GPS coordinates
         function getGPS() {
-            return new Promise((resolve, reject) => {
+            return new Promise(function(resolve, reject) {
                 if (!navigator.geolocation) {
-                    reject(new Error(translations[currentLang].errorGPS));
+                    reject(new Error(txt[lang].errGPS));
                     return;
                 }
-                
                 navigator.geolocation.getCurrentPosition(
-                    (position) => {
+                    function(pos) {
                         resolve({
-                            lat: position.coords.latitude.toFixed(6),
-                            lng: position.coords.longitude.toFixed(6)
+                            lat: pos.coords.latitude.toFixed(6),
+                            lng: pos.coords.longitude.toFixed(6)
                         });
                     },
-                    (error) => {
-                        reject(error);
+                    function(err) {
+                        reject(err);
                     },
-                    {
-                        enableHighAccuracy: true,
-                        timeout: 10000,
-                        maximumAge: 0
-                    }
+                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
                 );
             });
         }
         
-        async function collectData() {
-            try {
-                const gps = await getGPS();
-                const soundLevel = getSoundLevel();
-                const timestamp = new Date().toISOString();
-                
-                const dataPoint = {
-                    timestamp,
-                    lat: gps.lat,
-                    lng: gps.lng,
-                    db: soundLevel
-                };
-                
-                collectedData.push(dataPoint);
-                updateUI(dataPoint);
-            } catch (err) {
-                showError(translations[currentLang].errorCollect + err.message);
-            }
+        // Raccolta dati / Data gathering
+        function collect() {
+            getGPS()
+                .then(function(gps) {
+                    var db = getDB();
+                    var ts = new Date().toISOString();
+                    var point = { timestamp: ts, lat: gps.lat, lng: gps.lng, db: db };
+                    data.push(point);
+                    updateUI(point);
+                })
+                .catch(function(err) {
+                    showErr(txt[lang].errCollect + err.message);
+                });
         }
         
-        function updateUI(dataPoint) {
-            dataCountEl.textContent = collectedData.length;
-            lastGPSEl.textContent = `${dataPoint.lat}, ${dataPoint.lng}`;
-            lastSoundEl.textContent = `${dataPoint.db} dB`;
+        // Aggiorna interfaccia con nuovi dati / Update UI with new data
+        function updateUI(point) {
+            elemCount.textContent = data.length;
+            elemGPS.textContent = point.lat + ', ' + point.lng;
+            elemSound.textContent = point.db + ' dB';
             
-            if (dataBody.querySelector('td[colspan="4"]')) {
-                dataBody.innerHTML = '';
+            if (elemTbody.querySelector('td[colspan="4"]')) {
+                elemTbody.innerHTML = '';
             }
             
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${new Date(dataPoint.timestamp).toLocaleString('it-IT')}</td>
-                <td>${dataPoint.lat}</td>
-                <td>${dataPoint.lng}</td>
-                <td>${dataPoint.db} dB</td>
-            `;
-            dataBody.insertBefore(row, dataBody.firstChild);
+            var row = document.createElement('tr');
+            row.innerHTML = '<td>' + new Date(point.timestamp).toLocaleString() + '</td>' +
+                           '<td>' + point.lat + '</td>' +
+                           '<td>' + point.lng + '</td>' +
+                           '<td>' + point.db + ' dB</td>';
+            elemTbody.insertBefore(row, elemTbody.firstChild);
         }
         
-        startBtn.addEventListener('click', async () => {
-            if (isRecording) return;
+        // Avvia raccolta dati / Start data collection
+        elemStart.addEventListener('click', function() {
+            if (recording) return;
             
-            const audioReady = await initAudio();
-            if (!audioReady) return;
-            
-            isRecording = true;
-            startBtn.disabled = true;
-            stopBtn.disabled = false;
-            frequencyInput.disabled = true;
-            
-            statusEl.innerHTML = translations[currentLang].statusRecording + ' <span class="recording-indicator"></span>';
-            
-            collectData();
-            
-            const frequency = parseInt(frequencyInput.value) * 1000;
-            intervalId = setInterval(collectData, frequency);
+            setupAudio().then(function(ok) {
+                if (!ok) return;
+                
+                recording = true;
+                elemStart.disabled = true;
+                elemStop.disabled = false;
+                elemMode.disabled = true;
+                elemFreq.disabled = true;
+                
+                elemStatus.innerHTML = txt[lang].recording + ' <span class="recording-indicator"></span>';
+                
+                collect();
+                var freq = parseInt(elemFreq.value) * 1000;
+                interval = setInterval(collect, freq);
+            });
         });
         
-        stopBtn.addEventListener('click', () => {
-            if (!isRecording) return;
+        // Ferma raccolta dati / Stop data collection
+        elemStop.addEventListener('click', function() {
+            if (!recording) return;
             
-            isRecording = false;
-            startBtn.disabled = false;
-            stopBtn.disabled = true;
-            frequencyInput.disabled = false;
+            recording = false;
+            elemStart.disabled = false;
+            elemStop.disabled = true;
+            elemMode.disabled = false;
             
-            if (intervalId) {
-                clearInterval(intervalId);
-                intervalId = null;
+            if (elemMode.value === 'custom') {
+                elemFreq.disabled = false;
             }
             
-            if (microphone) {
-                microphone.disconnect();
-                microphone = null;
+            if (interval) {
+                clearInterval(interval);
+                interval = null;
             }
             
-            if (audioContext) {
-                audioContext.close();
-                audioContext = null;
+            if (mic) {
+                mic.disconnect();
+                mic = null;
             }
             
-            statusEl.textContent = translations[currentLang].statusStopped;
+            if (ctx) {
+                ctx.close();
+                ctx = null;
+            }
+            
+            elemStatus.textContent = txt[lang].stopped;
         });
         
-        exportBtn.addEventListener('click', () => {
-            if (collectedData.length === 0) {
-                showError(translations[currentLang].errorNoData);
+        // Esporta dati in CSV / Export data to CSV
+        elemExport.addEventListener('click', function() {
+            if (data.length === 0) {
+                showErr(txt[lang].errNoData);
                 return;
             }
             
-            const t = translations[currentLang];
-            const headers = t.csvHeaders;
+            var t = txt[lang];
+            var csv = t.csvTime + ',' + t.csvLat + ',' + t.csvLng + ',' + t.csvDB + '\n';
             
-            // Crea l'header del CSV
-            let csv = `${headers.timestamp},${headers.lat},${headers.lng},${headers.db}\n`;
+            for (var i = 0; i < data.length; i++) {
+                var p = data[i];
+                csv += p.timestamp + ',' + p.lat + ',' + p.lng + ',' + p.db + '\n';
+            }
             
-            // Aggiungi ogni riga di dati
-            collectedData.forEach(point => {
-                csv += `${point.timestamp},${point.lat},${point.lng},${point.db}\n`;
-            });
+            var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            var link = document.createElement('a');
+            var url = URL.createObjectURL(blob);
+            var ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+            var filename = t.csvFile + '_' + ts + '.csv';
             
-            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement('a');
-            const url = URL.createObjectURL(blob);
-            
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
-            const filename = `${t.csvFilename}_${timestamp}.csv`;
-            
-            link.setAttribute('href', url);
-            link.setAttribute('download', filename);
+            link.href = url;
+            link.download = filename;
             link.style.visibility = 'hidden';
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
         });
         
-        clearBtn.addEventListener('click', () => {
-            if (confirm(translations[currentLang].confirmClear)) {
-                collectedData = [];
-                dataBody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #999;" id="noData">' + translations[currentLang].noData + '</td></tr>';
-                dataCountEl.textContent = '0';
-                lastGPSEl.textContent = '-';
-                lastSoundEl.textContent = '-';
+        // Cancella tutti i dati / Clear all data
+        elemClear.addEventListener('click', function() {
+            if (confirm(txt[lang].confirmClear)) {
+                data = [];
+                elemTbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #999;" id="nodata">' + txt[lang].nodata + '</td></tr>';
+                elemCount.textContent = '0';
+                elemGPS.textContent = '-';
+                elemSound.textContent = '-';
             }
         });
     </script>
