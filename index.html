@@ -1,139 +1,451 @@
 <!DOCTYPE html>
-<html lang="it">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Raccolta Dati GPS e Suono</title>
+    <title>GPS and Sound Data Collection</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f3f4f6; min-height: 100vh; padding: 20px; }
-        .container { max-width: 800px; margin: 0 auto; background: white; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); padding: 30px; }
-        h1 { color: #333; margin-bottom: 30px; text-align: center; font-size: 28px; }
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
-        .modal.show { display: flex; }
-        .modal-content { background: white; padding: 30px; border-radius: 15px; max-width: 500px; width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.3); }
-        .modal-content h2 { margin-bottom: 20px; color: #333; }
-        .modal-content p { margin-bottom: 20px; color: #666; line-height: 1.6; }
-        .modal-buttons { display: flex; gap: 10px; margin-top: 20px; }
-        .modal-buttons button { flex: 1; }
-        .firebase-status { background: #e8f5e9; border: 2px solid #4caf50; padding: 10px 15px; border-radius: 8px; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
-        .firebase-status.disconnected { background: #fff3cd; border-color: #ffc107; }
-        .firebase-dot { width: 10px; height: 10px; border-radius: 50%; background: #4caf50; }
-        .firebase-status.disconnected .firebase-dot { background: #ffc107; }
-        .settings { background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 20px; }
-        .setting-group { margin-bottom: 15px; }
-        .setting-group:last-child { margin-bottom: 0; }
-        label { display: block; font-weight: 600; margin-bottom: 8px; color: #555; }
-        input[type="number"], select, input[type="text"] { width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px; transition: border 0.3s; background: white; }
-        input[type="number"]:focus, select:focus, input[type="text"]:focus { outline: none; border-color: #217346; }
-        input[type="number"]:disabled { background: #e9ecef; color: #6c757d; cursor: not-allowed; }
-        select { cursor: pointer; }
-        .controls { display: flex; gap: 10px; margin-bottom: 20px; }
-        button { flex: 1; padding: 15px; font-size: 16px; font-weight: 600; border: none; border-radius: 10px; cursor: pointer; transition: all 0.3s; color: white; }
-        .btn-start { background: #2563eb; }
-        .btn-start:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(37, 99, 235, 0.4); background: #1d4ed8; }
-        .btn-stop { background: #dc2626; }
-        .btn-stop:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(220, 38, 38, 0.4); background: #b91c1c; }
-        .btn-export { background: #217346; }
-        .btn-export:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(33, 115, 70, 0.5); background: #1a5c37; }
-        .btn-clear { background: #6b7280; }
-        .btn-clear:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(107, 114, 128, 0.4); background: #4b5563; }
-        .btn-firebase { background: #ffc107; color: #333; }
-        .btn-firebase:hover { background: #ffb300; }
-        .btn-confirm { background: #4caf50; }
-        .btn-cancel { background: #6b7280; }
-        button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
-        .status { background: #e9ecef; padding: 20px; border-radius: 10px; margin-bottom: 20px; }
-        .status-item { display: flex; justify-content: space-between; margin-bottom: 10px; padding: 10px; background: white; border-radius: 5px; }
-        .status-item:last-child { margin-bottom: 0; }
-        .status-label { font-weight: 600; color: #555; }
-        .status-value { color: #217346; font-weight: 700; }
-        .data-table { overflow-x: auto; margin-top: 20px; border-radius: 10px; background: white; padding: 0; max-height: 400px; overflow-y: auto; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-        table { width: 100%; border-collapse: collapse; background: white; }
-        th { background: #217346; color: white; padding: 14px 12px; text-align: left; position: sticky; top: 0; font-weight: 600; letter-spacing: 0.3px; border-right: 1px solid rgba(255,255,255,0.2); font-size: 14px; }
-        th:last-child { border-right: none; }
-        td { padding: 12px; border-bottom: 1px solid #e5e7eb; background: white; border-right: 1px solid #f3f4f6; font-size: 14px; color: #374151; }
-        td:last-child { border-right: none; }
-        tr:hover td { background: #f0fdf4; }
-        tbody tr:last-child td { border-bottom: none; }
-        .recording-indicator { display: inline-block; width: 12px; height: 12px; background: #ff4757; border-radius: 50%; margin-left: 10px; animation: pulse 1.5s infinite; }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
-        .error { background: #fee; color: #c00; padding: 15px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #c00; }
-        .lang-selector { text-align: right; margin-bottom: 15px; }
-        .lang-selector select { padding: 8px 12px; border: 2px solid #217346; border-radius: 8px; background: white; color: #217346; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.3s; }
-        .lang-selector select:hover { background: #217346; color: white; }
-        .lang-selector select:focus { outline: none; box-shadow: 0 0 0 3px rgba(33, 115, 70, 0.3); }
-        .help-text { font-size: 12px; color: #666; margin-top: 5px; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f3f4f6;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 30px;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            text-align: center;
+            font-size: 28px;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal.show {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+        
+        .modal-content h2 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+        
+        .modal-content p {
+            margin-bottom: 20px;
+            color: #666;
+            line-height: 1.6;
+        }
+        
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .modal-buttons button {
+            flex: 1;
+        }
+        
+        .firebase-status {
+            background: #e8f5e9;
+            border: 2px solid #4caf50;
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .firebase-status.disconnected {
+            background: #fff3cd;
+            border-color: #ffc107;
+        }
+        
+        .firebase-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #4caf50;
+        }
+        
+        .firebase-status.disconnected .firebase-dot {
+            background: #ffc107;
+        }
+        
+        .settings {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .setting-group {
+            margin-bottom: 15px;
+        }
+        
+        .setting-group:last-child {
+            margin-bottom: 0;
+        }
+        
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #555;
+        }
+        
+        input[type="number"], select, input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border 0.3s;
+            background: white;
+        }
+        
+        input[type="number"]:focus, select:focus, input[type="text"]:focus {
+            outline: none;
+            border-color: #217346;
+        }
+        
+        input[type="number"]:disabled {
+            background: #e9ecef;
+            color: #6c757d;
+            cursor: not-allowed;
+        }
+        
+        select {
+            cursor: pointer;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        button {
+            flex: 1;
+            padding: 15px;
+            font-size: 16px;
+            font-weight: 600;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: white;
+        }
+        
+        .btn-start {
+            background: #2563eb;
+        }
+        
+        .btn-start:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(37, 99, 235, 0.4);
+            background: #1d4ed8;
+        }
+        
+        .btn-stop {
+            background: #dc2626;
+        }
+        
+        .btn-stop:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(220, 38, 38, 0.4);
+            background: #b91c1c;
+        }
+        
+        .btn-export {
+            background: #217346;
+        }
+        
+        .btn-export:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(33, 115, 70, 0.5);
+            background: #1a5c37;
+        }
+        
+        .btn-clear {
+            background: #6b7280;
+        }
+        
+        .btn-clear:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(107, 114, 128, 0.4);
+            background: #4b5563;
+        }
+        
+        .btn-firebase {
+            background: #ffc107;
+            color: #333;
+        }
+        
+        .btn-firebase:hover {
+            background: #ffb300;
+        }
+        
+        .btn-confirm {
+            background: #4caf50;
+        }
+        
+        .btn-cancel {
+            background: #6b7280;
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .status {
+            background: #e9ecef;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding: 10px;
+            background: white;
+            border-radius: 5px;
+        }
+        
+        .status-item:last-child {
+            margin-bottom: 0;
+        }
+        
+        .status-label {
+            font-weight: 600;
+            color: #555;
+        }
+        
+        .status-value {
+            color: #217346;
+            font-weight: 700;
+        }
+        
+        .data-table {
+            overflow-x: auto;
+            margin-top: 20px;
+            border-radius: 10px;
+            background: white;
+            padding: 0;
+            max-height: 400px;
+            overflow-y: auto;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+        
+        th {
+            background: #217346;
+            color: white;
+            padding: 14px 12px;
+            text-align: left;
+            position: sticky;
+            top: 0;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+            border-right: 1px solid rgba(255,255,255,0.2);
+            font-size: 14px;
+        }
+        
+        th:last-child {
+            border-right: none;
+        }
+        
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #e5e7eb;
+            background: white;
+            border-right: 1px solid #f3f4f6;
+            font-size: 14px;
+            color: #374151;
+        }
+        
+        td:last-child {
+            border-right: none;
+        }
+        
+        tr:hover td {
+            background: #f0fdf4;
+        }
+        
+        tbody tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .recording-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            background: #ff4757;
+            border-radius: 50%;
+            margin-left: 10px;
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+        
+        .error {
+            background: #fee;
+            color: #c00;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border-left: 4px solid #c00;
+        }
+        
+        .lang-selector {
+            text-align: right;
+            margin-bottom: 15px;
+        }
+        
+        .lang-selector select {
+            padding: 8px 12px;
+            border: 2px solid #217346;
+            border-radius: 8px;
+            background: white;
+            color: #217346;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .lang-selector select:hover {
+            background: #217346;
+            color: white;
+        }
+        
+        .lang-selector select:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(33, 115, 70, 0.3);
+        }
+        
+        .help-text {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="lang-selector">
-            <!-- IT: Preseleziona Inglese come lingua di default -->
-            <!-- EN: Preselect English as the default language -->
+            <!-- Default language set to English / Lingua predefinita impostata su Inglese -->
             <select id="langSelect">
                 <option value="it">🇮🇹 Italiano</option>
                 <option value="en" selected>🇬🇧 English</option>
             </select>
         </div>
         
-        <h1 id="title"><i class="bi bi-geo-alt-fill"></i> Raccolta Dati GPS e Suono <i class="bi bi-soundwave"></i></h1>
+        <h1 id="title"><i class="bi bi-geo-alt-fill"></i> GPS and Sound Data Collection <i class="bi bi-soundwave"></i></h1>
         
         <div id="firebaseStatus" class="firebase-status disconnected">
             <div class="firebase-dot"></div>
-            <span id="firebaseText">Modalità locale - dati solo su device</span>
+            <span id="firebaseText">Local mode - data stored on device only</span>
         </div>
         
         <div id="error" class="error" style="display: none;"></div>
         
         <div class="settings">
             <div class="setting-group">
-                <label for="mode" id="labelMode">Modalità di raccolta:</label>
+                <label for="mode" id="labelMode">Collection mode:</label>
                 <select id="mode">
-                    <option value="walking">A piedi (3 sec)</option>
-                    <option value="cycling">In bicicletta (2 sec)</option>
-                    <option value="driving">In auto (2 sec)</option>
-                    <option value="stationary">Punto fisso (30 sec)</option>
-                    <option value="long">Lunga durata (60 sec)</option>
-                    <option value="custom">Manuale</option>
+                    <option value="walking">Walking (3 sec)</option>
+                    <option value="cycling">Cycling (2 sec)</option>
+                    <option value="driving">Driving (2 sec)</option>
+                    <option value="stationary">Fixed point (30 sec)</option>
+                    <option value="long">Long duration (60 sec)</option>
+                    <option value="custom">Manual</option>
                 </select>
             </div>
             <div class="setting-group">
-                <label for="freq" id="labelFreq">Frequenza (secondi):</label>
+                <label for="freq" id="labelFreq">Frequency (seconds):</label>
                 <input type="number" id="freq" min="1" max="3600" value="3" step="1" disabled>
             </div>
         </div>
         
         <div class="controls">
-            <button id="btnStart" class="btn-start"><i class="bi bi-play-fill"></i> Avvia Raccolta</button>
-            <button id="btnStop" class="btn-stop" disabled><i class="bi bi-stop-fill"></i> Ferma Raccolta</button>
+            <button id="btnStart" class="btn-start"><i class="bi bi-play-fill"></i> Start Collection</button>
+            <button id="btnStop" class="btn-stop" disabled><i class="bi bi-stop-fill"></i> Stop Collection</button>
         </div>
         
         <div class="controls">
-            <button id="btnFirebase" class="btn-firebase"><i class="bi bi-cloud-upload"></i> Connetti Firebase</button>
-            <button id="btnExport" class="btn-export"><i class="bi bi-download"></i> Esporta CSV</button>
+            <button id="btnFirebase" class="btn-firebase"><i class="bi bi-cloud-upload"></i> Connect Firebase</button>
+            <button id="btnExport" class="btn-export"><i class="bi bi-download"></i> Export CSV</button>
         </div>
         
         <div class="controls">
-            <button id="btnClear" class="btn-clear"><i class="bi bi-trash-fill"></i> Cancella Dati</button>
+            <button id="btnClear" class="btn-clear"><i class="bi bi-trash-fill"></i> Clear Data</button>
         </div>
         
         <div class="status">
             <div class="status-item">
-                <span class="status-label" id="labelStatus">Stato:</span>
-                <span class="status-value" id="status">In attesa</span>
+                <span class="status-label" id="labelStatus">Status:</span>
+                <span class="status-value" id="status">Waiting</span>
             </div>
             <div class="status-item">
-                <span class="status-label" id="labelCount">Dati raccolti:</span>
+                <span class="status-label" id="labelCount">Data collected:</span>
                 <span class="status-value" id="count">0</span>
             </div>
             <div class="status-item">
-                <span class="status-label" id="labelLastGPS">Ultima posizione:</span>
+                <span class="status-label" id="labelLastGPS">Last position:</span>
                 <span class="status-value" id="gps">-</span>
             </div>
             <div class="status-item">
-                <span class="status-label" id="labelLastSound">Ultimo livello suono:</span>
+                <span class="status-label" id="labelLastSound">Last sound level:</span>
                 <span class="status-value" id="sound">-</span>
             </div>
         </div>
@@ -143,43 +455,38 @@
                 <thead>
                     <tr>
                         <th id="thTime">Timestamp</th>
-                        <th id="thLat">Latitudine</th>
-                        <th id="thLng">Longitudine</th>
-                        <th id="thDB">Livello dB</th>
+                        <th id="thLat">Latitude</th>
+                        <th id="thLng">Longitude</th>
+                        <th id="thDB">Level dB</th>
                     </tr>
                 </thead>
                 <tbody id="tbody">
                     <tr>
-                        <td colspan="4" style="text-align: center; color: #999;" id="nodata">Nessun dato raccolto</td>
+                        <td colspan="4" style="text-align: center; color: #999;" id="nodata">No data collected</td>
                     </tr>
                 </tbody>
             </table>
         </div>
     </div>
 
-    <!-- Modal Firebase -->
+    <!-- Firebase Modal (no session field shown to the user) / Modal Firebase (nessun campo sessione visibile all'utente) -->
     <div id="modalFirebase" class="modal">
         <div class="modal-content">
-            <h2 id="modalTitle">Connessione Firebase</h2>
-            <p id="modalDesc">Inserisci le credenziali Firebase per salvare i dati sul cloud in tempo reale.</p>
+            <h2 id="modalTitle">Firebase Connection</h2>
+            <p id="modalDesc">Enter Firebase credentials to save data to cloud in real-time.</p>
             
             <div class="setting-group">
                 <label for="modalDbUrl">Database URL:</label>
                 <input type="text" id="modalDbUrl" placeholder="https://your-project.firebaseio.com">
-                <div class="help-text">Trova questo URL nella Firebase Console → Realtime Database</div>
+                <div class="help-text">Find this URL in Firebase Console → Realtime Database</div>
             </div>
             
-            <!-- IT: L'ID sessione è ora generato automaticamente e non modificabile -->
-            <!-- EN: The session ID is now auto-generated and not editable -->
-            <div class="setting-group">
-                <label for="modalSession">Session ID (auto):</label>
-                <input type="text" id="modalSession" placeholder="auto" disabled>
-                <div class="help-text">Generato automaticamente all'apertura di questa finestra / Automatically generated when this dialog opens</div>
-            </div>
+            <!-- Session is now created automatically and hidden from the user.
+                 La sessione ora viene creata automaticamente ed è nascosta all'utente. -->
             
             <div class="modal-buttons">
-                <button id="btnModalCancel" class="btn-cancel">Annulla</button>
-                <button id="btnModalConnect" class="btn-confirm">Connetti</button>
+                <button id="btnModalCancel" class="btn-cancel">Cancel</button>
+                <button id="btnModalConnect" class="btn-confirm">Connect</button>
             </div>
         </div>
     </div>
@@ -189,7 +496,7 @@
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
         import { getDatabase, ref, push } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
 
-        // Traduzioni / Translations
+        // Translations (EN default) / Traduzioni (EN predefinito)
         var txt = {
             it: {
                 title: '<i class="bi bi-geo-alt-fill"></i> Raccolta Dati GPS e Suono <i class="bi bi-soundwave"></i>',
@@ -214,7 +521,7 @@
                 thLat: 'Latitudine',
                 thLng: 'Longitudine',
                 thDB: 'Livello dB',
-                nodata: 'Nessun dato raccolti',
+                nodata: 'Nessun dato raccolto',
                 waiting: 'In attesa',
                 recording: 'Registrazione in corso',
                 stopped: 'Fermato',
@@ -279,11 +586,10 @@
             }
         };
         
-        // Frequenze preset / Preset frequencies
+        // Preset frequencies / Frequenze predefinite
         var freqs = { walking: 3, cycling: 2, driving: 2, stationary: 30, long: 60 };
         
-        // IT: Stato iniziale e variabili di servizio
-        // EN: Initial state and helper variables
+        // State variables (sessionId is auto-generated) / Variabili di stato (sessionId generato automaticamente)
         var recording = false;
         var interval = null;
         var ctx = null;
@@ -291,12 +597,12 @@
         var mic = null;
         var freqData = null;
         var data = [];
-        var lang = 'en'; // IT: lingua di default -> inglese | EN: default language -> English
+        var lang = 'en'; // default language EN / lingua predefinita EN
         var db = null;
         var fbApp = null;
-        var sessionId = null;
+        var sessionId = null; // hidden session id / id di sessione nascosto
         
-        // IT: Riferimenti al DOM | EN: DOM references
+        // DOM references / Riferimenti DOM
         var elemMode = document.getElementById('mode');
         var elemFreq = document.getElementById('freq');
         var elemStart = document.getElementById('btnStart');
@@ -315,18 +621,10 @@
         var elemFbText = document.getElementById('firebaseText');
         var elemModal = document.getElementById('modalFirebase');
         var elemModalDbUrl = document.getElementById('modalDbUrl');
-        var elemModalSession = document.getElementById('modalSession');
         var elemModalConnect = document.getElementById('btnModalConnect');
         var elemModalCancel = document.getElementById('btnModalCancel');
-
-        // IT: Genera un Session ID automatico stabile per la finestra | EN: Generate an automatic Session ID for the dialog
-        function genSessionId() {
-            var t = new Date().toISOString().replace(/[:.]/g, '-');
-            var rnd = Math.random().toString(36).slice(2, 6);
-            return 'session_' + t + '_' + rnd;
-        }
         
-        // IT: Gestione cambio modalità | EN: Mode change handler
+        // Mode change handler / Gestione cambio modalità
         elemMode.addEventListener('change', function() {
             var m = elemMode.value;
             if (m === 'custom') {
@@ -337,46 +635,43 @@
             }
         });
         
-        // IT: Cambio lingua | EN: Language change
+        // Language change handler / Gestione cambio lingua
         elemLang.addEventListener('change', function() {
             updateLang(elemLang.value);
         });
         
-        // IT: Apri modal Firebase | EN: Open Firebase modal
+        // Open Firebase modal / Apri modal Firebase
         elemFirebase.addEventListener('click', function() {
-            // IT: Popola e blocca il Session ID auto | EN: Fill and lock the auto Session ID
-            elemModalSession.value = genSessionId();
-            elemModalSession.disabled = true;
             elemModal.classList.add('show');
         });
         
-        // IT: Chiudi modal | EN: Close modal
+        // Close modal / Chiudi modal
         elemModalCancel.addEventListener('click', function() {
             elemModal.classList.remove('show');
         });
         
-        // IT: Connetti Firebase | EN: Connect Firebase
+        // Connect Firebase (session id auto) / Connetti Firebase (session id automatico)
         elemModalConnect.addEventListener('click', function() {
             var dbUrl = elemModalDbUrl.value.trim();
-            // IT/EN: Session ID è precompilato e bloccato
-            var session = elemModalSession.value.trim();
             
             if (!dbUrl) {
-                showErr('Inserisci Database URL / Enter Database URL');
+                showErr('Enter Database URL / Inserisci Database URL');
                 return;
             }
             
-            initFirebase(dbUrl, session);
+            initFirebase(dbUrl);
             elemModal.classList.remove('show');
         });
         
-        // IT: Aggiorna testi interfaccia | EN: Update UI texts
+        // Update UI texts / Aggiorna testi UI
         function updateLang(l) {
             lang = l;
             var t = txt[l];
+            
             document.getElementById('title').innerHTML = t.title;
             document.getElementById('labelMode').textContent = t.labelMode;
             document.getElementById('labelFreq').textContent = t.labelFreq;
+            
             var opts = elemMode.options;
             opts[0].text = t.modeWalking;
             opts[1].text = t.modeCycling;
@@ -384,41 +679,62 @@
             opts[3].text = t.modeStationary;
             opts[4].text = t.modeLong;
             opts[5].text = t.modeCustom;
+            
             elemStart.innerHTML = t.btnStart;
             elemStop.innerHTML = t.btnStop;
             elemFirebase.innerHTML = t.btnFirebase;
             elemExport.innerHTML = t.btnExport;
             elemClear.innerHTML = t.btnClear;
+            
             document.getElementById('labelStatus').textContent = t.labelStatus;
             document.getElementById('labelCount').textContent = t.labelCount;
             document.getElementById('labelLastGPS').textContent = t.labelLastGPS;
             document.getElementById('labelLastSound').textContent = t.labelLastSound;
+            
             document.getElementById('thTime').textContent = t.thTime;
             document.getElementById('thLat').textContent = t.thLat;
             document.getElementById('thLng').textContent = t.thLng;
             document.getElementById('thDB').textContent = t.thDB;
+            
             document.getElementById('modalTitle').textContent = t.modalTitle;
             document.getElementById('modalDesc').textContent = t.modalDesc;
-            if (!recording) { elemStatus.textContent = t.waiting; }
+            
+            if (!recording) {
+                elemStatus.textContent = t.waiting;
+            }
+            
             updateFirebaseStatus();
+            
             var nd = document.getElementById('nodata');
-            if (nd) { nd.textContent = t.nodata; }
+            if (nd) {
+                nd.textContent = t.nodata;
+            }
         }
         
-        // IT: Mostra errore | EN: Show error
+        // Show error / Mostra errore
         function showErr(msg) {
             elemError.textContent = msg;
             elemError.style.display = 'block';
-            setTimeout(function() { elemError.style.display = 'none'; }, 5000);
+            setTimeout(function() {
+                elemError.style.display = 'none';
+            }, 5000);
         }
         
-        // IT: Inizializza Firebase | EN: Initialize Firebase
-        function initFirebase(dbUrl, session) {
+        // Initialize Firebase and auto-generate session id
+        // Inizializza Firebase e genera automaticamente l'id sessione
+        function initFirebase(dbUrl) {
             try {
-                var firebaseConfig = { databaseURL: dbUrl };
+                var firebaseConfig = {
+                    databaseURL: dbUrl
+                };
+                
                 fbApp = initializeApp(firebaseConfig);
                 db = getDatabase(fbApp);
-                sessionId = session; // IT/EN: usa l'auto Session ID
+                
+                // Auto-generate hidden session id (timestamp + random)
+                // Genera automaticamente id di sessione nascosto (timestamp + casuale)
+                sessionId = 'sess_' + new Date().toISOString().replace(/[:.]/g, '-') + '_' + Math.random().toString(36).slice(2, 8);
+                
                 updateFirebaseStatus(true);
             } catch (err) {
                 showErr(txt[lang].errFirebase + err.message);
@@ -426,9 +742,12 @@
             }
         }
         
-        // IT: Aggiorna stato Firebase UI | EN: Update Firebase status UI
+        // Update Firebase status UI / Aggiorna stato Firebase UI
         function updateFirebaseStatus(connected) {
-            if (connected === undefined) { connected = db !== null; }
+            if (connected === undefined) {
+                connected = db !== null;
+            }
+            
             if (connected) {
                 elemFbStatus.classList.remove('disconnected');
                 elemFbText.textContent = txt[lang].fbConnected;
@@ -438,9 +757,10 @@
             }
         }
         
-        // IT: Salva su Firebase | EN: Save to Firebase
+        // Save to Firebase / Salva su Firebase
         function saveToFirebase(point) {
             if (!db || !sessionId) return;
+            
             try {
                 var dataRef = ref(db, 'noise_data/' + sessionId);
                 push(dataRef, point);
@@ -449,7 +769,7 @@
             }
         }
         
-        // IT: Setup audio | EN: Initialize microphone access
+        // Setup microphone / Inizializza microfono
         function setupAudio() {
             return new Promise(function(resolve) {
                 navigator.mediaDevices.getUserMedia({ audio: true })
@@ -469,21 +789,26 @@
             });
         }
         
-        // IT: Calcolo dB | EN: Calculate sound level in dB
+        // Calculate dB level / Calcola livello dB
         function getDB() {
             if (!analyzer || !freqData) return 0;
             analyzer.getByteFrequencyData(freqData);
             var sum = 0;
-            for (var i = 0; i < freqData.length; i++) { sum += freqData[i]; }
+            for (var i = 0; i < freqData.length; i++) {
+                sum += freqData[i];
+            }
             var avg = sum / freqData.length;
             var dbVal = 20 * Math.log10(avg / 255) + 100;
             return Math.max(0, Math.min(100, dbVal)).toFixed(1);
         }
         
-        // IT: Ottieni GPS | EN: Get GPS coordinates
+        // Get GPS / Ottieni GPS
         function getGPS() {
             return new Promise(function(resolve, reject) {
-                if (!navigator.geolocation) { reject(new Error(txt[lang].errGPS)); return; }
+                if (!navigator.geolocation) {
+                    reject(new Error(txt[lang].errGPS));
+                    return;
+                }
                 navigator.geolocation.getCurrentPosition(
                     function(pos) {
                         resolve({
@@ -491,13 +816,15 @@
                             lng: pos.coords.longitude.toFixed(6)
                         });
                     },
-                    function(err) { reject(err); },
+                    function(err) {
+                        reject(err);
+                    },
                     { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
                 );
             });
         }
         
-        // IT: Raccolta | EN: Data gathering
+        // Collect data / Raccolta dati
         function collect() {
             getGPS()
                 .then(function(gps) {
@@ -513,15 +840,21 @@
                     updateUI(point);
                     saveToFirebase(point);
                 })
-                .catch(function(err) { showErr(txt[lang].errCollect + err.message); });
+                .catch(function(err) {
+                    showErr(txt[lang].errCollect + err.message);
+                });
         }
         
-        // IT: Aggiorna UI | EN: Update UI
+        // Update UI / Aggiorna UI
         function updateUI(point) {
             elemCount.textContent = data.length;
             elemGPS.textContent = point.lat + ', ' + point.lng;
             elemSound.textContent = point.db + ' dB';
-            if (elemTbody.querySelector('td[colspan="4"]')) { elemTbody.innerHTML = ''; }
+            
+            if (elemTbody.querySelector('td[colspan="4"]')) {
+                elemTbody.innerHTML = '';
+            }
+            
             var row = document.createElement('tr');
             row.innerHTML = '<td>' + new Date(point.timestamp).toLocaleString() + '</td>' +
                            '<td>' + point.lat + '</td>' +
@@ -530,58 +863,90 @@
             elemTbody.insertBefore(row, elemTbody.firstChild);
         }
         
-        // IT: Start | EN: Start
+        // Start collection / Avvia raccolta
         elemStart.addEventListener('click', function() {
             if (recording) return;
+            
             setupAudio().then(function(ok) {
                 if (!ok) return;
+                
                 recording = true;
                 elemStart.disabled = true;
                 elemStop.disabled = false;
                 elemMode.disabled = true;
                 elemFreq.disabled = true;
                 elemFirebase.disabled = true;
+                
                 elemStatus.innerHTML = txt[lang].recording + ' <span class="recording-indicator"></span>';
+                
                 collect();
                 var freq = parseInt(elemFreq.value) * 1000;
                 interval = setInterval(collect, freq);
             });
         });
         
-        // IT: Stop | EN: Stop
+        // Stop collection / Ferma raccolta
         elemStop.addEventListener('click', function() {
             if (!recording) return;
+            
             recording = false;
             elemStart.disabled = false;
             elemStop.disabled = true;
             elemMode.disabled = false;
             elemFirebase.disabled = false;
-            if (elemMode.value === 'custom') { elemFreq.disabled = false; }
-            if (interval) { clearInterval(interval); interval = null; }
-            if (mic) { mic.disconnect(); mic = null; }
-            if (ctx) { ctx.close(); ctx = null; }
+            
+            if (elemMode.value === 'custom') {
+                elemFreq.disabled = false;
+            }
+            
+            if (interval) {
+                clearInterval(interval);
+                interval = null;
+            }
+            
+            if (mic) {
+                mic.disconnect();
+                mic = null;
+            }
+            
+            if (ctx) {
+                ctx.close();
+                ctx = null;
+            }
+            
             elemStatus.textContent = txt[lang].stopped;
         });
         
-        // IT: Export CSV | EN: Export CSV
+        // Export CSV / Esporta CSV
         elemExport.addEventListener('click', function() {
-            if (data.length === 0) { showErr(txt[lang].errNoData); return; }
+            if (data.length === 0) {
+                showErr(txt[lang].errNoData);
+                return;
+            }
+            
             var t = txt[lang];
             var csv = t.csvTime + ',' + t.csvLat + ',' + t.csvLng + ',' + t.csvDB + '\n';
+            
             for (var i = 0; i < data.length; i++) {
                 var p = data[i];
                 csv += p.timestamp + ',' + p.lat + ',' + p.lng + ',' + p.db + '\n';
             }
+            
             var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             var link = document.createElement('a');
             var url = URL.createObjectURL(blob);
             var ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
             var filename = t.csvFile + '_' + ts + '.csv';
-            link.href = url; link.download = filename; link.style.visibility = 'hidden';
-            document.body.appendChild(link); link.click(); document.body.removeChild(link);
+            
+            link.href = url;
+            link.download = filename;
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
         });
         
-        // IT: Cancella dati | EN: Clear data
+        // Clear data / Cancella dati
         elemClear.addEventListener('click', function() {
             if (confirm(txt[lang].confirmClear)) {
                 data = [];
@@ -591,8 +956,8 @@
                 elemSound.textContent = '-';
             }
         });
-
-        // IT: Forza la UI iniziale in inglese | EN: Force initial UI to English
+        
+        // Ensure UI language reflects default on load / Allinea UI alla lingua predefinita al caricamento
         updateLang('en');
     </script>
 </body>
