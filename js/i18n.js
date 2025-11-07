@@ -87,5 +87,4 @@ var txt = {
                 csvDB: 'Sound_Level_dB'
             }
         };
-
 export { txt };
