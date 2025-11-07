@@ -35,6 +35,80 @@
             font-size: 28px;
         }
         
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal.show {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+        
+        .modal-content h2 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+        
+        .modal-content p {
+            margin-bottom: 20px;
+            color: #666;
+            line-height: 1.6;
+        }
+        
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .modal-buttons button {
+            flex: 1;
+        }
+        
+        .firebase-status {
+            background: #e8f5e9;
+            border: 2px solid #4caf50;
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .firebase-status.disconnected {
+            background: #fff3cd;
+            border-color: #ffc107;
+        }
+        
+        .firebase-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #4caf50;
+        }
+        
+        .firebase-status.disconnected .firebase-dot {
+            background: #ffc107;
+        }
+        
         .settings {
             background: #f8f9fa;
             padding: 20px;
@@ -57,7 +131,7 @@
             color: #555;
         }
         
-        input[type="number"], select {
+        input[type="number"], select, input[type="text"] {
             width: 100%;
             padding: 12px;
             border: 2px solid #ddd;
@@ -67,7 +141,7 @@
             background: white;
         }
         
-        input[type="number"]:focus, select:focus {
+        input[type="number"]:focus, select:focus, input[type="text"]:focus {
             outline: none;
             border-color: #217346;
         }
@@ -138,6 +212,23 @@
             transform: translateY(-2px);
             box-shadow: 0 5px 15px rgba(107, 114, 128, 0.4);
             background: #4b5563;
+        }
+        
+        .btn-firebase {
+            background: #ffc107;
+            color: #333;
+        }
+        
+        .btn-firebase:hover {
+            background: #ffb300;
+        }
+        
+        .btn-confirm {
+            background: #4caf50;
+        }
+        
+        .btn-cancel {
+            background: #6b7280;
         }
         
         button:disabled {
@@ -281,6 +372,12 @@
             outline: none;
             box-shadow: 0 0 0 3px rgba(33, 115, 70, 0.3);
         }
+        
+        .help-text {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
     </style>
 </head>
 <body>
@@ -293,6 +390,11 @@
         </div>
         
         <h1 id="title"><i class="bi bi-geo-alt-fill"></i> Raccolta Dati GPS e Suono <i class="bi bi-soundwave"></i></h1>
+        
+        <div id="firebaseStatus" class="firebase-status disconnected">
+            <div class="firebase-dot"></div>
+            <span id="firebaseText">Modalità locale - dati solo su device</span>
+        </div>
         
         <div id="error" class="error" style="display: none;"></div>
         
@@ -320,7 +422,11 @@
         </div>
         
         <div class="controls">
+            <button id="btnFirebase" class="btn-firebase"><i class="bi bi-cloud-upload"></i> Connetti Firebase</button>
             <button id="btnExport" class="btn-export"><i class="bi bi-download"></i> Esporta CSV</button>
+        </div>
+        
+        <div class="controls">
             <button id="btnClear" class="btn-clear"><i class="bi bi-trash-fill"></i> Cancella Dati</button>
         </div>
         
@@ -362,7 +468,36 @@
         </div>
     </div>
 
-    <script>
+    <!-- Modal Firebase -->
+    <div id="modalFirebase" class="modal">
+        <div class="modal-content">
+            <h2 id="modalTitle">Connessione Firebase</h2>
+            <p id="modalDesc">Inserisci le credenziali Firebase per salvare i dati sul cloud in tempo reale.</p>
+            
+            <div class="setting-group">
+                <label for="modalDbUrl">Database URL:</label>
+                <input type="text" id="modalDbUrl" placeholder="https://your-project.firebaseio.com">
+                <div class="help-text">Trova questo URL nella Firebase Console → Realtime Database</div>
+            </div>
+            
+            <div class="setting-group">
+                <label for="modalSession">Nome Sessione:</label>
+                <input type="text" id="modalSession" placeholder="es: dublin_centro_mattina">
+                <div class="help-text">Identifica questa sessione di raccolta dati</div>
+            </div>
+            
+            <div class="modal-buttons">
+                <button id="btnModalCancel" class="btn-cancel">Annulla</button>
+                <button id="btnModalConnect" class="btn-confirm">Connetti</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        // Import Firebase SDK / Importa Firebase SDK
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getDatabase, ref, push } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
+
         // Traduzioni / Translations
         var txt = {
             it: {
@@ -377,6 +512,7 @@
                 modeCustom: 'Manuale',
                 btnStart: '<i class="bi bi-play-fill"></i> Avvia Raccolta',
                 btnStop: '<i class="bi bi-stop-fill"></i> Ferma Raccolta',
+                btnFirebase: '<i class="bi bi-cloud-upload"></i> Connetti Firebase',
                 btnExport: '<i class="bi bi-download"></i> Esporta CSV',
                 btnClear: '<i class="bi bi-trash-fill"></i> Cancella Dati',
                 labelStatus: 'Stato:',
@@ -387,14 +523,19 @@
                 thLat: 'Latitudine',
                 thLng: 'Longitudine',
                 thDB: 'Livello dB',
-                nodata: 'Nessun dato raccolto',
+                nodata: 'Nessun dato raccolti',
                 waiting: 'In attesa',
                 recording: 'Registrazione in corso',
                 stopped: 'Fermato',
+                fbLocal: 'Modalità locale - dati solo su device',
+                fbConnected: 'Firebase connesso - salvataggio cloud attivo',
+                modalTitle: 'Connessione Firebase',
+                modalDesc: 'Inserisci le credenziali Firebase per salvare i dati sul cloud in tempo reale.',
                 errMic: 'Errore accesso microfono: ',
                 errGPS: 'GPS non supportato',
                 errCollect: 'Errore raccolta dati: ',
                 errNoData: 'Nessun dato da esportare',
+                errFirebase: 'Errore Firebase: ',
                 confirmClear: 'Sei sicuro di voler cancellare tutti i dati raccolti?',
                 csvFile: 'dati_gps_suono',
                 csvTime: 'Data_Ora',
@@ -414,6 +555,7 @@
                 modeCustom: 'Manual',
                 btnStart: '<i class="bi bi-play-fill"></i> Start Collection',
                 btnStop: '<i class="bi bi-stop-fill"></i> Stop Collection',
+                btnFirebase: '<i class="bi bi-cloud-upload"></i> Connect Firebase',
                 btnExport: '<i class="bi bi-download"></i> Export CSV',
                 btnClear: '<i class="bi bi-trash-fill"></i> Clear Data',
                 labelStatus: 'Status:',
@@ -428,10 +570,15 @@
                 waiting: 'Waiting',
                 recording: 'Recording in progress',
                 stopped: 'Stopped',
+                fbLocal: 'Local mode - data stored on device only',
+                fbConnected: 'Firebase connected - cloud storage active',
+                modalTitle: 'Firebase Connection',
+                modalDesc: 'Enter Firebase credentials to save data to cloud in real-time.',
                 errMic: 'Microphone access error: ',
                 errGPS: 'GPS not supported',
                 errCollect: 'Data collection error: ',
                 errNoData: 'No data to export',
+                errFirebase: 'Firebase error: ',
                 confirmClear: 'Are you sure you want to delete all collected data?',
                 csvFile: 'gps_sound_data',
                 csvTime: 'DateTime',
@@ -453,12 +600,16 @@
         var freqData = null;
         var data = [];
         var lang = 'it';
+        var db = null;
+        var fbApp = null;
+        var sessionId = null;
         
         // Riferimenti agli elementi DOM / DOM element references
         var elemMode = document.getElementById('mode');
         var elemFreq = document.getElementById('freq');
         var elemStart = document.getElementById('btnStart');
         var elemStop = document.getElementById('btnStop');
+        var elemFirebase = document.getElementById('btnFirebase');
         var elemExport = document.getElementById('btnExport');
         var elemClear = document.getElementById('btnClear');
         var elemLang = document.getElementById('langSelect');
@@ -468,6 +619,13 @@
         var elemSound = document.getElementById('sound');
         var elemTbody = document.getElementById('tbody');
         var elemError = document.getElementById('error');
+        var elemFbStatus = document.getElementById('firebaseStatus');
+        var elemFbText = document.getElementById('firebaseText');
+        var elemModal = document.getElementById('modalFirebase');
+        var elemModalDbUrl = document.getElementById('modalDbUrl');
+        var elemModalSession = document.getElementById('modalSession');
+        var elemModalConnect = document.getElementById('btnModalConnect');
+        var elemModalCancel = document.getElementById('btnModalCancel');
         
         // Gestione cambio modalità / Mode change handler
         elemMode.addEventListener('change', function() {
@@ -483,6 +641,35 @@
         // Gestione cambio lingua / Language change handler
         elemLang.addEventListener('change', function() {
             updateLang(elemLang.value);
+        });
+        
+        // Apri modal Firebase / Open Firebase modal
+        elemFirebase.addEventListener('click', function() {
+            elemModal.classList.add('show');
+        });
+        
+        // Chiudi modal / Close modal
+        elemModalCancel.addEventListener('click', function() {
+            elemModal.classList.remove('show');
+        });
+        
+        // Connetti Firebase / Connect Firebase
+        elemModalConnect.addEventListener('click', function() {
+            var dbUrl = elemModalDbUrl.value.trim();
+            var session = elemModalSession.value.trim();
+            
+            if (!dbUrl) {
+                showErr('Inserisci Database URL');
+                return;
+            }
+            
+            if (!session) {
+                showErr('Inserisci Nome Sessione');
+                return;
+            }
+            
+            initFirebase(dbUrl, session);
+            elemModal.classList.remove('show');
         });
         
         // Aggiorna testi interfaccia / Update UI texts
@@ -504,6 +691,7 @@
             
             elemStart.innerHTML = t.btnStart;
             elemStop.innerHTML = t.btnStop;
+            elemFirebase.innerHTML = t.btnFirebase;
             elemExport.innerHTML = t.btnExport;
             elemClear.innerHTML = t.btnClear;
             
@@ -517,9 +705,14 @@
             document.getElementById('thLng').textContent = t.thLng;
             document.getElementById('thDB').textContent = t.thDB;
             
+            document.getElementById('modalTitle').textContent = t.modalTitle;
+            document.getElementById('modalDesc').textContent = t.modalDesc;
+            
             if (!recording) {
                 elemStatus.textContent = t.waiting;
             }
+            
+            updateFirebaseStatus();
             
             var nd = document.getElementById('nodata');
             if (nd) {
@@ -534,6 +727,51 @@
             setTimeout(function() {
                 elemError.style.display = 'none';
             }, 5000);
+        }
+        
+        // Inizializza Firebase / Initialize Firebase
+        function initFirebase(dbUrl, session) {
+            try {
+                var firebaseConfig = {
+                    databaseURL: dbUrl
+                };
+                
+                fbApp = initializeApp(firebaseConfig);
+                db = getDatabase(fbApp);
+                sessionId = session;
+                
+                updateFirebaseStatus(true);
+            } catch (err) {
+                showErr(txt[lang].errFirebase + err.message);
+                updateFirebaseStatus(false);
+            }
+        }
+        
+        // Aggiorna stato Firebase UI / Update Firebase status UI
+        function updateFirebaseStatus(connected) {
+            if (connected === undefined) {
+                connected = db !== null;
+            }
+            
+            if (connected) {
+                elemFbStatus.classList.remove('disconnected');
+                elemFbText.textContent = txt[lang].fbConnected;
+            } else {
+                elemFbStatus.classList.add('disconnected');
+                elemFbText.textContent = txt[lang].fbLocal;
+            }
+        }
+        
+        // Salva dati su Firebase / Save data to Firebase
+        function saveToFirebase(point) {
+            if (!db || !sessionId) return;
+            
+            try {
+                var dataRef = ref(db, 'noise_data/' + sessionId);
+                push(dataRef, point);
+            } catch (err) {
+                console.error('Firebase save error:', err);
+            }
         }
         
         // Inizializza accesso microfono / Initialize microphone access
@@ -565,8 +803,8 @@
                 sum += freqData[i];
             }
             var avg = sum / freqData.length;
-            var db = 20 * Math.log10(avg / 255) + 100;
-            return Math.max(0, Math.min(100, db)).toFixed(1);
+            var dbVal = 20 * Math.log10(avg / 255) + 100;
+            return Math.max(0, Math.min(100, dbVal)).toFixed(1);
         }
         
         // Ottieni coordinate GPS / Get GPS coordinates
@@ -595,11 +833,17 @@
         function collect() {
             getGPS()
                 .then(function(gps) {
-                    var db = getDB();
+                    var dbVal = getDB();
                     var ts = new Date().toISOString();
-                    var point = { timestamp: ts, lat: gps.lat, lng: gps.lng, db: db };
+                    var point = { 
+                        timestamp: ts, 
+                        lat: parseFloat(gps.lat), 
+                        lng: parseFloat(gps.lng), 
+                        db: parseFloat(dbVal)
+                    };
                     data.push(point);
                     updateUI(point);
+                    saveToFirebase(point);
                 })
                 .catch(function(err) {
                     showErr(txt[lang].errCollect + err.message);
@@ -636,6 +880,7 @@
                 elemStop.disabled = false;
                 elemMode.disabled = true;
                 elemFreq.disabled = true;
+                elemFirebase.disabled = true;
                 
                 elemStatus.innerHTML = txt[lang].recording + ' <span class="recording-indicator"></span>';
                 
@@ -653,6 +898,7 @@
             elemStart.disabled = false;
             elemStop.disabled = true;
             elemMode.disabled = false;
+            elemFirebase.disabled = false;
             
             if (elemMode.value === 'custom') {
                 elemFreq.disabled = false;
