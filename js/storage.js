@@ -1,70 +1,50 @@
-// Firebase Realtime Database storage (with anonymous auth + batching)
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js';
-import { getDatabase, ref, set, push, update, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js';
-import { getAuth, signInAnonymously } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js';
+// Initialize Firebase and auto-generate session id
+// Inizializza Firebase e genera automaticamente l'id sessione
+function initFirebase(dbUrl) {
+            try {
+                var firebaseConfig = {
+                    databaseURL: dbUrl
+                };
+                
+                fbApp = initializeApp(firebaseConfig);
+                db = getDatabase(fbApp);
+                
+                // Auto-generate hidden session id (timestamp + random)
+                // Genera automaticamente id di sessione nascosto (timestamp + casuale)
+                sessionId = 'sess_' + new Date().toISOString().replace(/[:.]/g, '-') + '_' + Math.random().toString(36).slice(2, 8);
+                
+                updateFirebaseStatus(true);
+            } catch (err) {
+                showErr(txt[lang].errFirebase + err.message);
+                updateFirebaseStatus(false);
+            }
+        }
 
-let app, db, auth;
-let sessionId = null;
+// Update Firebase status UI / Aggiorna stato Firebase UI
+function updateFirebaseStatus(connected) {
+            if (connected === undefined) {
+                connected = db !== null;
+            }
+            
+            if (connected) {
+                elemFbStatus.classList.remove('disconnected');
+                elemFbText.textContent = txt[lang].fbConnected;
+            } else {
+                elemFbStatus.classList.add('disconnected');
+                elemFbText.textContent = txt[lang].fbLocal;
+            }
+        }
 
-// batching
-const BUFFER_SIZE = 5;
-let buffer = [];
+// Save to Firebase / Salva su Firebase
+function saveToFirebase(point) {
+            if (!db || !sessionId) return;
+            
+            try {
+                var dataRef = ref(db, 'noise_data/' + sessionId);
+                push(dataRef, point);
+            } catch (err) {
+                console.error('Firebase save error:', err);
+            }
+        }
 
-export async function initFirebase(cfg){
-  app = initializeApp(cfg);
-  db = getDatabase(app);
-  auth = getAuth(app);
-}
-
-export async function signInAnon(){
-  if(!auth) throw new Error('Firebase non inizializzato');
-  await signInAnonymously(auth);
-}
-
-function makeSessionId(){
-  return 'sess_' + new Date().toISOString().replace(/[:.]/g,'-') + '_' + Math.random().toString(36).slice(2,8);
-}
-
-export async function startSession(meta){
-  if(!db) throw new Error('DB non inizializzato');
-  sessionId = makeSessionId();
-  await set(ref(db, 'sessions/' + sessionId), {
-    ...meta,
-    createdAt: serverTimestamp()
-  });
-  buffer = [];
-  return sessionId;
-}
-
-export async function savePoint(point){
-  if(!sessionId) return;
-  buffer.push(point);
-  if (buffer.length >= BUFFER_SIZE){
-    const base = 'sessions/' + sessionId + '/points';
-    const updates = {};
-    buffer.forEach(p => {
-      const k = push(ref(db, base)).key;
-      updates[base + '/' + k] = { ...p, ingestTime: serverTimestamp() };
-    });
-    await update(ref(db), updates);
-    buffer = [];
-  }
-}
-
-export async function endSession(){
-  if(!sessionId) return;
-  // flush rest
-  if (buffer.length){
-    const base = 'sessions/' + sessionId + '/points';
-    const updates = {};
-    buffer.forEach(p => {
-      const k = push(ref(db, base)).key;
-      updates[base + '/' + k] = { ...p, ingestTime: serverTimestamp() };
-    });
-    await update(ref(db), updates);
-    buffer = [];
-  }
-  // write endAt
-  await set(ref(db, 'sessions/' + sessionId + '/endedAt'), serverTimestamp());
-  sessionId = null;
-}
+export { initFirebase, updateFirebaseStatus, saveToFirebase };
