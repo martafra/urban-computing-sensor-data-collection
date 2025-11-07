@@ -479,12 +479,7 @@
                 <input type="text" id="modalDbUrl" placeholder="https://your-project.firebaseio.com">
                 <div class="help-text">Trova questo URL nella Firebase Console → Realtime Database</div>
             </div>
-            
-            <div class="setting-group">
-                <label for="modalSession">Nome Sessione:</label>
-                <input type="text" id="modalSession" placeholder="es: dublin_centro_mattina">
-                <div class="help-text">Identifica questa sessione di raccolta dati</div>
-            </div>
+            <!-- Campo Nome Sessione rimosso: l'ID viene generato automaticamente -->
             
             <div class="modal-buttons">
                 <button id="btnModalCancel" class="btn-cancel">Annulla</button>
@@ -494,7 +489,7 @@
     </div>
 
     <script type="module">
-        // Import Firebase SDK / Importa Firebase SDK
+        // Import Firebase SDK
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
         import { getDatabase, ref, push } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
 
@@ -604,7 +599,7 @@
         var fbApp = null;
         var sessionId = null;
         
-        // Riferimenti agli elementi DOM / DOM element references
+        // Riferimenti agli elementi DOM
         var elemMode = document.getElementById('mode');
         var elemFreq = document.getElementById('freq');
         var elemStart = document.getElementById('btnStart');
@@ -623,11 +618,17 @@
         var elemFbText = document.getElementById('firebaseText');
         var elemModal = document.getElementById('modalFirebase');
         var elemModalDbUrl = document.getElementById('modalDbUrl');
-        var elemModalSession = document.getElementById('modalSession');
         var elemModalConnect = document.getElementById('btnModalConnect');
         var elemModalCancel = document.getElementById('btnModalCancel');
         
-        // Gestione cambio modalità / Mode change handler
+        // Generatore ID sessione (timestamp + random)
+        function generateSessionId() {
+            var ts = new Date().toISOString().replace(/[-:.TZ]/g, '').slice(0, 14); // YYYYMMDDHHMMSS
+            var rnd = Math.random().toString(36).slice(2, 8);
+            return 'sess_' + ts + '_' + rnd;
+        }
+        
+        // Gestione cambio modalità
         elemMode.addEventListener('change', function() {
             var m = elemMode.value;
             if (m === 'custom') {
@@ -638,41 +639,35 @@
             }
         });
         
-        // Gestione cambio lingua / Language change handler
+        // Gestione cambio lingua
         elemLang.addEventListener('change', function() {
             updateLang(elemLang.value);
         });
         
-        // Apri modal Firebase / Open Firebase modal
+        // Apri modal Firebase
         elemFirebase.addEventListener('click', function() {
             elemModal.classList.add('show');
         });
         
-        // Chiudi modal / Close modal
+        // Chiudi modal
         elemModalCancel.addEventListener('click', function() {
             elemModal.classList.remove('show');
         });
         
-        // Connetti Firebase / Connect Firebase
+        // Connetti Firebase (senza input sessione; generazione automatica)
         elemModalConnect.addEventListener('click', function() {
             var dbUrl = elemModalDbUrl.value.trim();
-            var session = elemModalSession.value.trim();
             
             if (!dbUrl) {
                 showErr('Inserisci Database URL');
                 return;
             }
             
-            if (!session) {
-                showErr('Inserisci Nome Sessione');
-                return;
-            }
-            
-            initFirebase(dbUrl, session);
+            initFirebase(dbUrl);
             elemModal.classList.remove('show');
         });
         
-        // Aggiorna testi interfaccia / Update UI texts
+        // Aggiorna testi interfaccia
         function updateLang(l) {
             lang = l;
             var t = txt[l];
@@ -720,7 +715,7 @@
             }
         }
         
-        // Mostra messaggio di errore / Show error message
+        // Mostra messaggio di errore
         function showErr(msg) {
             elemError.textContent = msg;
             elemError.style.display = 'block';
@@ -729,8 +724,8 @@
             }, 5000);
         }
         
-        // Inizializza Firebase / Initialize Firebase
-        function initFirebase(dbUrl, session) {
+        // Inizializza Firebase (e genera sessionId)
+        function initFirebase(dbUrl) {
             try {
                 var firebaseConfig = {
                     databaseURL: dbUrl
@@ -738,7 +733,7 @@
                 
                 fbApp = initializeApp(firebaseConfig);
                 db = getDatabase(fbApp);
-                sessionId = session;
+                sessionId = generateSessionId(); // <-- auto
                 
                 updateFirebaseStatus(true);
             } catch (err) {
@@ -747,7 +742,7 @@
             }
         }
         
-        // Aggiorna stato Firebase UI / Update Firebase status UI
+        // Aggiorna stato Firebase UI
         function updateFirebaseStatus(connected) {
             if (connected === undefined) {
                 connected = db !== null;
@@ -755,14 +750,14 @@
             
             if (connected) {
                 elemFbStatus.classList.remove('disconnected');
-                elemFbText.textContent = txt[lang].fbConnected;
+                elemFbText.textContent = txt[lang].fbConnected + (sessionId ? ' (sessione: ' + sessionId + ')' : '');
             } else {
                 elemFbStatus.classList.add('disconnected');
                 elemFbText.textContent = txt[lang].fbLocal;
             }
         }
         
-        // Salva dati su Firebase / Save data to Firebase
+        // Salva dati su Firebase
         function saveToFirebase(point) {
             if (!db || !sessionId) return;
             
@@ -774,7 +769,7 @@
             }
         }
         
-        // Inizializza accesso microfono / Initialize microphone access
+        // Inizializza accesso microfono
         function setupAudio() {
             return new Promise(function(resolve) {
                 navigator.mediaDevices.getUserMedia({ audio: true })
@@ -794,7 +789,7 @@
             });
         }
         
-        // Calcola livello sonoro in dB / Calculate sound level in dB
+        // Calcola livello sonoro in dB
         function getDB() {
             if (!analyzer || !freqData) return 0;
             analyzer.getByteFrequencyData(freqData);
@@ -807,7 +802,7 @@
             return Math.max(0, Math.min(100, dbVal)).toFixed(1);
         }
         
-        // Ottieni coordinate GPS / Get GPS coordinates
+        // Ottieni coordinate GPS
         function getGPS() {
             return new Promise(function(resolve, reject) {
                 if (!navigator.geolocation) {
@@ -829,7 +824,7 @@
             });
         }
         
-        // Raccolta dati / Data gathering
+        // Raccolta dati
         function collect() {
             getGPS()
                 .then(function(gps) {
@@ -850,7 +845,7 @@
                 });
         }
         
-        // Aggiorna interfaccia con nuovi dati / Update UI with new data
+        // Aggiorna UI con nuovi dati
         function updateUI(point) {
             elemCount.textContent = data.length;
             elemGPS.textContent = point.lat + ', ' + point.lng;
@@ -868,7 +863,7 @@
             elemTbody.insertBefore(row, elemTbody.firstChild);
         }
         
-        // Avvia raccolta dati / Start data collection
+        // Avvia raccolta dati
         elemStart.addEventListener('click', function() {
             if (recording) return;
             
@@ -890,7 +885,7 @@
             });
         });
         
-        // Ferma raccolta dati / Stop data collection
+        // Ferma raccolta dati
         elemStop.addEventListener('click', function() {
             if (!recording) return;
             
@@ -922,7 +917,7 @@
             elemStatus.textContent = txt[lang].stopped;
         });
         
-        // Esporta dati in CSV / Export data to CSV
+        // Esporta CSV
         elemExport.addEventListener('click', function() {
             if (data.length === 0) {
                 showErr(txt[lang].errNoData);
@@ -951,7 +946,7 @@
             document.body.removeChild(link);
         });
         
-        // Cancella tutti i dati / Clear all data
+        // Cancella dati
         elemClear.addEventListener('click', function() {
             if (confirm(txt[lang].confirmClear)) {
                 data = [];
