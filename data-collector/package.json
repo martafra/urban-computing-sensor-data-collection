@@ -1,0 +1,9 @@
+{
+  "name": "data-collector",
+  "version": "1.0.0",
+  "main": "bikes_collector.js",
+  "scripts": {
+    "start": "node bikes_collector.js",
+    "once": "node -e \"require('./bikes_collector.js').collectBikesData()\""
+  }
+}
