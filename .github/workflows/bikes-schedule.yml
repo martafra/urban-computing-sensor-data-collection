@@ -18,4 +18,4 @@ jobs:
         working-directory: bikes
         env:
           FIREBASE_URL: ${{ secrets.FIREBASE_URL }}
-        run: node ../collect-once.js
+        run: node ../collector-citybikes.js
