@@ -1,4 +1,4 @@
-name: Bikes Collector
+name: Bikes Collector (CityBikes)
 on:
   schedule:
     - cron: "*/10 * * * *"
@@ -14,7 +14,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
-      - name: Run once
+      - name: Run CityBikes collector
         env:
           FIREBASE_URL: ${{ secrets.FIREBASE_URL }}
-        run: node collector.js & sleep 8 && pkill -f collector.js || true
+        run: node collector-citybikes.js & sleep 8 && pkill -f collector-citybikes.js || true

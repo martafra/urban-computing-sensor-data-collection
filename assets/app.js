@@ -1,5 +1,4 @@
-
-        // Import Firebase SDK / Importa Firebase SDK
+// Import Firebase SDK / Importa Firebase SDK
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
         import { getDatabase, ref, push } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
 
@@ -466,4 +465,3 @@
         
         // Ensure UI language reflects default on load / Allinea UI alla lingua predefinita al caricamento
         updateLang('en');
-    

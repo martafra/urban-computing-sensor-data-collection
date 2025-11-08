@@ -1,17 +1,12 @@
-# Node environment
+# Node artifacts
 bikes/node_modules/
 bikes/npm-debug.log
 bikes/yarn-error.log
 
-# Env files
+# Local env files
 .env
 bikes/.env
 
-# Temp files
-*.swp
-*.swo
-*.tmp
-
-# OS files
+# OS junk
 .DS_Store
 Thumbs.db
