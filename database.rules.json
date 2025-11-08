@@ -1,0 +1,29 @@
+{
+  "rules": {
+
+    "noise_data": {
+      "$session": {
+        ".read": false,
+        ".write": true
+      }
+    },
+
+    "bikes_data": {
+  "$year": {
+    "$month": {
+      "$day": {
+        "$hour": {
+          "$minute": {
+            ".read": false,
+            ".write": true,
+            ".validate": "newData.hasChildren(['source','network','collected_at','stations'])"
+          }
+        }
+      }
+    }
+  }
+}
+
+
+  }
+}

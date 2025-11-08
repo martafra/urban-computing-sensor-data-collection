@@ -1,12 +1,20 @@
-# Node artifacts
-bikes/node_modules/
-bikes/npm-debug.log
-bikes/yarn-error.log
+# Firebase
+.firebase/
+.firebaserc
+firebase-debug.log
+firebase-debug.*.log
+*-debug.log
 
-# Local env files
+# Firebase Service Account (se presente)
+*-firebase-adminsdk-*.json
+serviceAccountKey.json
+
+# Functions
+functions/node_modules/
+functions/.eslintrc.js
+functions/lib/
+
+# Environment variables
 .env
-bikes/.env
-
-# OS junk
-.DS_Store
-Thumbs.db
+.env.local
+.env.*.local

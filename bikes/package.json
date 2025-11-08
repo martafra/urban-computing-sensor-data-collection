@@ -1,9 +1,0 @@
-{
-  "name": "bikes-collector",
-  "version": "1.0.0",
-  "private": true,
-  "main": "collector-citybikes.js",
-  "scripts": {
-    "start": "node collector-citybikes.js"
-  }
-}
