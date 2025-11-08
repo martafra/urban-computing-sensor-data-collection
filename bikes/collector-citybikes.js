@@ -1,223 +1,132 @@
-// Dublin Bikes Data Collector per Firebase / Dublin Bikes Data Collector for Firebase
-// Raccoglie dati dalle stazioni Dublin Bikes e li salva su Firebase in tempo reale
-// Collects Dublin Bikes station data and saves to Firebase in real-time
+// ============================================================================
+//  CityBikes Single-Shot Collector
+//  Colleziona un singolo snapshot dei dati Dublin Bikes e lo salva su Firebase.
+//  Collects a single snapshot of Dublin Bikes data and saves it to Firebase.
+// ============================================================================
 
 const https = require('https');
+const { URL } = require('url');
 
+// ---------------------------------------------------------------------------
 // CONFIGURAZIONE FIREBASE / FIREBASE CONFIGURATION
-// Usa variabili d'ambiente per sicurezza / Use environment variables for security
-// Esegui con / Run with: FIREBASE_URL=https://your-project.firebaseio.com node bikes_collector.js
+// ---------------------------------------------------------------------------
+
 const FIREBASE_URL = process.env.FIREBASE_URL || '';
-const FIREBASE_PATH = '/bikes_data';
 
-// CONFIGURAZIONE API CITYBIKES (Dublin) / CITYBIKES API CONFIGURATION (Dublin)
-const BIKES_API_URL = 'https://api.citybik.es/v2/networks/dublinbikes';
+if (!FIREBASE_URL) {
+  console.error('FIREBASE_URL mancante / missing FIREBASE_URL');
+  process.exit(1);
+}
 
-// Intervallo di raccolta (millisecondi) / Collection interval (milliseconds)
-const COLLECTION_INTERVAL = 5 * 60 * 1000; // 5 minuti / 5 minutes
+// ---------------------------------------------------------------------------
+// HTTP GET JSON
+// Scarica JSON via HTTPS / Fetch JSON via HTTPS
+// ---------------------------------------------------------------------------
+function httpGetJSON(url) {
+  return new Promise((resolve, reject) => {
+    https.get(url, (res) => {
+      let data = '';
+      res.on('data', (chunk) => (data += chunk));
+      res.on('end', () => {
+        try {
+          resolve(JSON.parse(data));
+        } catch (e) {
+          reject(e);
+        }
+      });
+    }).on('error', reject);
+  });
+}
 
-// Contatore per debug / Counter for debugging
-let collectionCount = 0;
+// ---------------------------------------------------------------------------
+// HTTP PUT JSON verso Firebase
+// JSON PUT to Firebase
+// ---------------------------------------------------------------------------
+function httpPutJSON(url, body) {
+  return new Promise((resolve, reject) => {
+    const u = new URL(url);
+    const payload = Buffer.from(JSON.stringify(body));
+    const opts = {
+      hostname: u.hostname,
+      path: u.pathname + u.search,
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': payload.length,
+      },
+    };
 
-// Funzione per fare richieste HTTP / HTTP request function
-function httpGet(url) {
-    return new Promise(function(resolve, reject) {
-        console.log('  → HTTP GET:', url);
-        https.get(url, function(res) {
-            let data = '';
-            
-            res.on('data', function(chunk) {
-                data += chunk;
-            });
-            
-            res.on('end', function() {
-                console.log('  ✓ HTTP response:', res.statusCode);
-                try {
-                    resolve(JSON.parse(data));
-                } catch (err) {
-                    console.error('  ✗ JSON parse error:', err.message);
-                    reject(err);
-                }
-            });
-        }).on('error', function(err) {
-            console.error('  ✗ HTTP error:', err.message);
-            reject(err);
-        });
+    const req = https.request(opts, (res) => {
+      let data = '';
+      res.on('data', (d) => (data += d));
+      res.on('end', () => resolve({ status: res.statusCode, body: data }));
     });
+
+    req.on('error', reject);
+    req.write(payload);
+    req.end();
+  });
 }
 
-// Salva dati su Firebase / Save data to Firebase
-function saveToFirebase(data) {
-    return new Promise(function(resolve, reject) {
-        // Usa timestamp Unix più semplice / Use simpler Unix timestamp
-        const timestamp = Date.now();
-        const path = FIREBASE_PATH + '/' + timestamp + '.json';
-        const fullUrl = FIREBASE_URL + path;
-        
-        console.log('  → Firebase PUT:', path);
-        
-        const dataStr = JSON.stringify(data);
-        const urlObj = new URL(fullUrl);
-        
-        const options = {
-            hostname: urlObj.hostname,
-            path: urlObj.pathname + urlObj.search,
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'Content-Length': Buffer.byteLength(dataStr)
-            }
-        };
-        
-        const req = https.request(options, function(res) {
-            let responseData = '';
-            
-            res.on('data', function(chunk) {
-                responseData += chunk;
-            });
-            
-            res.on('end', function() {
-                console.log('  ✓ Firebase response:', res.statusCode);
-                
-                if (res.statusCode === 200) {
-                    console.log('  ✓ Data saved successfully');
-                    resolve(responseData);
-                } else {
-                    console.error('  ✗ Firebase error:', res.statusCode);
-                    console.error('  ✗ Response body:', responseData);
-                    reject(new Error('Firebase error ' + res.statusCode + ': ' + responseData));
-                }
-            });
-        });
-        
-        req.on('error', function(err) {
-            console.error('  ✗ Request error:', err.message);
-            reject(err);
-        });
-        
-        req.write(dataStr);
-        req.end();
-    });
-}
+// ---------------------------------------------------------------------------
+// MAIN
+// Esegue una singola raccolta / Performs a single collection
+// ---------------------------------------------------------------------------
+(async () => {
+  const now = new Date();
+  const iso = now.toISOString();
 
-// Processa dati bikes / Process bikes data
-function processBikesData(rawData) {
-    if (!rawData || !rawData.network || !Array.isArray(rawData.network.stations)) {
-        console.error('  ✗ Invalid data structure');
-        return null;
-    }
-    
-    const stations = rawData.network.stations;
-    const processed = [];
-    
-    for (let i = 0; i < stations.length; i++) {
-        const station = stations[i];
-        
-        processed.push({
-            id: station.id,
-            name: station.name,
-            address: (station.extra && station.extra.address) || '',
-            lat: station.latitude,
-            lng: station.longitude,
-            bikes: station.free_bikes,
-            stands: station.empty_slots,
-            total: (station.free_bikes || 0) + (station.empty_slots || 0),
-            status: (station.extra && station.extra.status) || '',
-            lastUpdate: station.timestamp || null
-        });
-    }
-    
-    console.log('  ✓ Processed', processed.length, 'stations');
-    return processed;
-}
+  // 1. Scarica dati CityBikes / Fetch CityBikes data
+  const bikes = await httpGetJSON('https://api.citybik.es/v2/networks/dublinbikes');
 
-// Raccolta dati principale / Main data collection
-function collectBikesData() {
-    collectionCount++;
-    console.log('\n============================================');
-    console.log('[Collection #' + collectionCount + '] ' + new Date().toISOString());
-    console.log('============================================');
-    
-    httpGet(BIKES_API_URL)
-        .then(function(data) {
-            console.log('  ✓ API response received');
-            
-            const processed = processBikesData(data);
-            if (!processed) {
-                console.error('  ✗ Failed to process data');
-                return Promise.reject(new Error('Data processing failed'));
-            }
-            
-            return saveToFirebase(processed);
-        })
-        .then(function() {
-            console.log('  ✓ Collection completed successfully');
-            console.log('============================================\n');
-        })
-        .catch(function(err) {
-            console.error('  ✗ Collection failed:', err.message);
-            console.error('============================================\n');
-        });
-}
+  // 2. Normalizza le stazioni / Normalize station records
+  const network = bikes.network || {};
+  const stations = (network.stations || []).map((s) => ({
+    id: s.id,
+    name: s.name,
+    free_bikes: s.free_bikes,
+    empty_slots: s.empty_slots,
+    timestamp: s.timestamp || iso,
+    latitude: s.latitude,
+    longitude: s.longitude,
+    extra: s.extra || {},
+  }));
 
-// Verifica configurazione / Check configuration
-function checkConfig() {
-    if (!FIREBASE_URL) {
-        console.error('\n===========================================');
-        console.error('ERROR: Firebase URL not configured!');
-        console.error('===========================================\n');
-        console.log('Run with:');
-        console.log('  FIREBASE_URL=https://your-project.firebaseio.com node bikes_collector.js\n');
-        console.log('Or create a .env file with:');
-        console.log('  FIREBASE_URL=https://your-project.firebaseio.com\n');
-        process.exit(1);
-    }
-    
-    // Verifica formato URL / Validate URL format
-    try {
-        new URL(FIREBASE_URL);
-    } catch (err) {
-        console.error('ERROR: Invalid Firebase URL:', FIREBASE_URL);
-        process.exit(1);
-    }
-}
+  const out = {
+    source: 'citybikes',
+    network: network.id || 'dublinbikes',
+    collected_at: iso,
+    stations,
+  };
 
-// Avvia collector / Start collector
-function start() {
-    checkConfig();
-    
-    console.log('===========================================');
-    console.log('   Dublin Bikes Collector (CityBikes)');
-    console.log('===========================================');
-    console.log('Database URL:', FIREBASE_URL);
-    console.log('API:', BIKES_API_URL);
-    console.log('Interval:', COLLECTION_INTERVAL / 1000, 'seconds (' + (COLLECTION_INTERVAL / 60000) + ' minutes)');
-    console.log('===========================================\n');
-    
-    // Prima raccolta immediata / First immediate collection
-    collectBikesData();
-    
-    // Poi ogni X minuti / Then every X minutes
-    setInterval(collectBikesData, COLLECTION_INTERVAL);
-    
-    console.log('✓ Collector started!');
-    console.log('✓ Next collection in', COLLECTION_INTERVAL / 1000, 'seconds');
-    console.log('✓ Press Ctrl+C to stop.\n');
-}
+  // 3. Costruisci percorso Firebase / Build Firebase path
+  const d = new Date();
+  const path =
+    `/bikes_data/` +
+    `${d.getUTCFullYear()}/` +
+    `${String(d.getUTCMonth() + 1).padStart(2, '0')}/` +
+    `${String(d.getUTCDate()).padStart(2, '0')}/` +
+    `${String(d.getUTCHours()).padStart(2, '0')}/` +
+    `${String(d.getUTCMinutes()).padStart(2, '0')}.json`;
 
-// Gestione terminazione pulita / Clean shutdown handler
-process.on('SIGINT', function() {
-    console.log('\n\n===========================================');
-    console.log('Collector stopped by user');
-    console.log('Collections completed:', collectionCount);
-    console.log('===========================================\n');
-    process.exit(0);
+  // Firebase URL finale (senza token) / Final Firebase URL (no token)
+  const url = `${FIREBASE_URL.replace(/\/$/, '')}${path}`;
+
+  // 4. Salvataggio su Firebase / Save to Firebase
+  const res = await httpPutJSON(url, out);
+
+  if (res.status >= 200 && res.status < 300) {
+    console.log(
+      'Snapshot salvato / Snapshot saved:',
+      path,
+      'stazioni / stations:',
+      stations.length
+    );
+  } else {
+    console.error('Errore Firebase / Firebase error:', res.status, res.body);
+    process.exit(2);
+  }
+})().catch((e) => {
+  console.error('Errore / Error:', e);
+  process.exit(1);
 });
-
-// Avvia il programma / Start the program
-if (require.main === module) {
-    start();
-}
-
-// Export per testing / Export for testing
-module.exports = { httpGet, processBikesData, saveToFirebase, collectBikesData };

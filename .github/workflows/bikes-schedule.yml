@@ -1,20 +1,21 @@
-name: Bikes Collector (CityBikes)
+name: Bikes Collector (single-shot)
 on:
   schedule:
+    # every 10 minutes
     - cron: "*/10 * * * *"
   workflow_dispatch:
+permissions:
+  contents: read
 jobs:
-  run:
+  collect:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: bikes
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
-      - name: Run CityBikes collector
+      - name: Run CityBikes single-shot collector
+        working-directory: bikes
         env:
           FIREBASE_URL: ${{ secrets.FIREBASE_URL }}
-        run: node collector-citybikes.js & sleep 8 && pkill -f collector-citybikes.js || true
+        run: node ../collect-once.js
